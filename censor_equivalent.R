@@ -25,7 +25,7 @@ parser$add_argument("-rd", "--repeat_database", help = "File path to database co
 args <- parser$parse_args()
 
 # set variables
-# query_path <- "~/Analysis/Snake/HT_Workflow/Proto2-Snek/Proto2-7_CS1.fasta"
+# query_path <- "~/Analysis/Snake/HT_Workflow/RTE-Snek/RTE-Snek.fasta"
 # genome <- "~/Analysis/Genomes/Aipysurus_laevis/kmer_49.pilon_x2.sorted.fasta"
 # repeat_database <- "~/Analysis/Snake/HT_Workflow/Proto2-Snek/LINEs.fa"
 query_path <- args$query
@@ -60,7 +60,7 @@ blast_1 <- blast_1 %>%
 
 # filter out small hits
 blast_1 <- blast_1 %>%
-  filter(length >= 100)
+  filter(length >= 250)
 
 # flatten ranges
 blast_ranges <- blast_1 %>%
@@ -89,10 +89,10 @@ names(blast_1_seqs) <- blast_names$names
 Biostrings::writeXStringSet(x = blast_1_seqs, filepath = paste0("working/", query_name, "_in_", subject_name, ".fasta"))
 
 # reciprocal search - blast sequences against database which includes all LINEs in RepBase and LINEs of interest
-system(paste0("blastn -dbsize 1000000 -max_target_seqs 1000000 -evalue 0.00002 -num_threads 4 -reward 3 -penalty -4 -xdrop_ungap 80 -xdrop_gap 130 -xdrop_gap_final 150 -word_size 10 -outfmt 6 -dust yes -gapopen 30 -gapextend 6 -query working/", query_name, "_in_", subject_name, ".fasta", " -db ", repeat_database, " -out ", "./working/tmp_blast2.out"))
+system(paste0("blastn -dbsize 1000000 -max_target_seqs 1000000 -evalue 0.00002 -num_threads 4 -reward 3 -penalty -4 -xdrop_ungap 80 -xdrop_gap 130 -xdrop_gap_final 150 -word_size 10 -outfmt 6 -dust yes -gapopen 30 -gapextend 6 -query working/", query_name, "_in_", subject_name, ".fasta", " -db ", repeat_database, " -out working/", query_name, "_in_", subject_name, "_2.out"))
 
 # read in reciprocal search                      
-blast_2 <- read_tsv(file = "./working/tmp_blast2.out", col_names = c("qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore"))
+blast_2 <- read_tsv(file = paste0("working/", query_name, "_in_", subject_name, "_2.out"), col_names = c("qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore"))
 
 # correct for strandness, rename where necessary
 blast_2 <- blast_2 %>%
@@ -104,9 +104,9 @@ blast_2 <- blast_2 %>%
 # select top hits based on coverage and bitscore
 top_hits <- blast_2 %>%
   inner_join(blast_names) %>%
-  mutate(coverage = (qend - qstart + 1) / width) %>%
+  mutate(coverage = (qend - qstart + 1) / width, pident = coverage * pident) %>%
   dplyr::group_by(names, sseqid) %>%
-  summarise(sum_bitscore = sum(bitscore), sum_coverage = sum(coverage)) %>% # calculate total coverage and sum bitscore for hits
+  summarise(sum_bitscore = sum(bitscore), sum_coverage = sum(coverage), sum_pident =  sum(pident)/sum(coverage)) %>% # calculate total coverage and sum bitscore for hits
   filter(sum_coverage > 0.5) %>% # coverage must be over 50%
   dplyr::top_n(n = 1, wt = sum_bitscore) %>% # select highest bitscore
   ungroup() %>%
@@ -118,5 +118,5 @@ top_hits <- blast_2 %>%
 
 # write to file
 top_hits %>%
-  select(seqnames, start, end, sseqid, sum_bitscore, strand) %>%
+  select(seqnames, start, end, sseqid, sum_pident, strand) %>%
   readr::write_tsv(paste0("working/reciprocal_", query_name, "_in_", subject_name, ".bed"), col_names = F)
