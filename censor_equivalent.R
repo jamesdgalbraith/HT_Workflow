@@ -10,19 +10,26 @@
 
 # Here I have "translated" the legacy NCBI blast options into NCBI blast+ options and used the gap open and gap extend options from the wublast options (these two, -G and -E respectively, were not defined in the CENSOR documentation however are required to run).
 
-# load packages
-suppressMessages(library(tidyverse))
-suppressMessages(library(plyranges))
-suppressMessages(library(BSgenome))
+# parse arguments
 suppressMessages(library(argparse))
 
 parser <- ArgumentParser(description = "Rough reciprocal search for repeats. Sequences must have \".fasta\" extension")
 
-parser$add_argument("-q", "--query", help = "File path to query sequence")
-parser$add_argument("-g", "--genome", help = "File path to genome being searched")
-parser$add_argument("-rd", "--repeat_database", help = "File path to database containing query repeat and all other repeats.")
+parser$add_argument("-q", "--query", default = NULL, help = "File path to query sequence")
+parser$add_argument("-g", "--genome", default = NULL, help = "File path to genome being searched")
+parser$add_argument("-rd", "--repeat_database", default = NULL, help = "File path to database containing query repeat and all other repeats.")
 
 args <- parser$parse_args()
+
+if(is.null(args$query) | is.null(args$genome) | is.null(args$repeat_database)){
+  stop("Variables not set")
+}
+
+
+# load packages
+suppressMessages(library(tidyverse))
+suppressMessages(library(plyranges))
+suppressMessages(library(BSgenome))
 
 # set variables
 # query_path <- "~/Analysis/Snake/HT_Workflow/RTE-Snek/RTE-Snek.fasta"
