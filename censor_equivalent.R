@@ -21,10 +21,6 @@ parser$add_argument("-rd", "--repeat_database", default = NULL, help = "File pat
 
 args <- parser$parse_args()
 
-print(paste0("Query is "), args$query)
-print(paste0("Genome is "), args$genome)
-print(paste0("Database is "), args$repeat_database)
-
 if(is.null(args$query) | is.null(args$genome) | is.null(args$repeat_database)){
   stop("Variables not set")
 }
