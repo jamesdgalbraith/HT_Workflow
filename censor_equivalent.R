@@ -21,6 +21,10 @@ parser$add_argument("-rd", "--repeat_database", default = NULL, help = "File pat
 
 args <- parser$parse_args()
 
+print(paste0("Query is "), args$query)
+print(paste0("Genome is "), args$genome)
+print(paste0("Database is "), args$repeat_database)
+
 if(is.null(args$query) | is.null(args$genome) | is.null(args$repeat_database)){
   stop("Variables not set")
 }
@@ -49,6 +53,11 @@ subject_name <- sub("\\.fasta", "", subject_name)
 if(!file.exists(paste0(genome, ".nhr")) | !file.exists(paste0(genome, ".nin")) | !file.exists(paste0(genome, ".nsq"))){
   system(paste0("makeblastdb -dbtype nucl -in ", genome, " -out ", genome))
   }
+
+# ensure blast db of repeat_database exists
+if(!file.exists(paste0(repeat_database, ".nhr")) | !file.exists(paste0(repeat_database, ".nin")) | !file.exists(paste0(repeat_database, ".nsq"))){
+  system(paste0("makeblastdb -dbtype nucl -in ", repeat_database, " -out ", repeat_database))
+}
 
 # ensure working directory exists
 if(!dir.exists("./working")){dir.create("./working")}
