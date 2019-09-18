@@ -4,9 +4,7 @@
 ## TO DO: CREATE VERSION FOR MULTIPLE SEQUENCES
 
 library(argparse)
-suppressMessages(library(tidyverse))
-suppressMessages(library(plyranges))
-suppressMessages(library(BSgenome))
+
 parser <- ArgumentParser(description = "Script to extract flanking sequences around repeats")
 
 parser$add_argument("-f5", "--flank5", default = 2000, type = "double", help = "Length of 5' flanking sequence")
@@ -19,6 +17,10 @@ parser$add_argument("-of", "--out_folder", default = ".", help = "Folder for out
 
 args <- parser$parse_args()
 
+suppressMessages(library(tidyverse))
+suppressMessages(library(plyranges))
+suppressMessages(library(BSgenome))
+
 # set and read in genome
 if(!file.exists(paste0(args$genome, ".fai"))){system(paste0("samtools faidx ", args$genome))}
 
@@ -29,6 +31,8 @@ genome_fai <- read_tsv(paste0(args$genome, ".fai"), col_names = c("seqnames", "s
 repeat_seq <- Biostrings::readDNAStringSet(filepath = args$query_repeat)
 repeat_name <- names(repeat_seq)
 
+print("Blasting")
+
 # blast, read blast, rearrange
 blast_out <- read.table(text=system(paste0("blastn -query ", args$query_repeat, " -db ", args$genome, " -outfmt \"6 sseqid sstart send pident qcovs bitscore length\""), intern = TRUE), col.names = c("seqnames", "sstart", "send", "pident", "qcovs", "bitscore", "length")) %>%
   as_tibble() %>%
@@ -37,6 +41,8 @@ blast_out <- read.table(text=system(paste0("blastn -query ", args$query_repeat, 
   mutate(strand = case_when(sstart > send ~ "-", send > sstart ~ "+"),
          start = case_when(sstart < send ~ sstart, send < sstart ~ send),
          end = case_when(sstart > send ~ sstart, send > sstart ~ send))
+
+print("Filtering")
 
 # filter based on coverage and identity, extend and adjust
 bed <- blast_out %>%
@@ -51,26 +57,56 @@ bed <- blast_out %>%
          name = paste0(seqnames, ":", start, "-", end, "(", strand, ")")) %>%
   dplyr::select(seqnames, start, end, strand, name)
 
+if(nrow(bed) < 2){stop("Too few hits, try adjusting pident and coverage")}
+
+print("Snipping")
+print(paste0("hits = ", nrow(bed)))
 if(nrow(as_tibble(bed))>30){
   bed <- bed %>% dplyr::slice(1:30)
 }
 
+print(head(bed))
+
+print("Ranging")
+
 bed <- plyranges::as_granges(bed)
+
+head(bed)
+
+print("Reading")
 
 # read in genome
 genome_seq <- Biostrings::readDNAStringSet(filepath = args$genome)
 
+print("Renaming")
+
+# rename  genome seqs
+names(genome_seq) <- sub(" .*", "", names(genome_seq))
+
+print(head(names(genome_seq)))
+print(head(bed))
+
+print("Getting seq")
+
 # get seqs
 seqs <- Biostrings::getSeq(genome_seq, bed)
+
+print("Naming seq")
 
 # name seqs
 names(seqs) <- GenomicRanges::elementMetadata(bed)[["name"]]
 
+print("Merging with query")
+
 # merge with transcribed repeat
 seqs <- c(repeat_seq, seqs)
 
+print("Writing")
+
 # write seqs to files
 Biostrings::writeXStringSet(x = seqs, filepath = paste0(args$out_folder, "/", repeat_name, "_hits.fa"))
+
+print("Aligning")
 
 # perform multiple alignment
 system(paste0("mafft --adjustdirection ", args$out_folder, "/", repeat_name, "_hits.fa > ", args$out_folder, "/", repeat_name, "_hits_aligned.fa"))
