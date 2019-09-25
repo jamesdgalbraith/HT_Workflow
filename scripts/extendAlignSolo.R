@@ -14,8 +14,11 @@ parser$add_argument("-gn", "--genome", default = NULL, help = "Genome to search 
 parser$add_argument("-cv", "--coverage", default = 80, type = "double", help = "Minimum coverage by query repeat")
 parser$add_argument("-pi", "--pident", default = 95, type = "double", help = "Minimum percent identity to consensus")
 parser$add_argument("-of", "--out_folder", default = ".", help = "Folder for output")
+parser$add_argument("-sp", "--species_name", default = NULL, help = "Sepecies name to be appended (if desired)")
 
 args <- parser$parse_args()
+
+if(is.null(args$genome) | is.null(args$query_repeat)){stop("Genome and query repeat must be defined")}
 
 suppressMessages(library(tidyverse))
 suppressMessages(library(plyranges))
@@ -32,6 +35,10 @@ repeat_seq <- Biostrings::readDNAStringSet(filepath = args$query_repeat)
 repeat_name <- names(repeat_seq)
 
 print("Blasting")
+
+if(!file.exists(paste0(args$genome, ".nhr")) | !file.exists(paste0(args$genome, ".nin")) | !file.exists(paste0(args$genome, ".nsq"))){
+  system(paste0("makeblastdb -dbtype nucl -in ", args$genome, " -out ", args$genome))
+}
 
 # blast, read blast, rearrange
 blast_out <- read.table(text=system(paste0("blastn -query ", args$query_repeat, " -db ", args$genome, " -outfmt \"6 sseqid sstart send pident qcovs bitscore length\""), intern = TRUE), col.names = c("seqnames", "sstart", "send", "pident", "qcovs", "bitscore", "length")) %>%
@@ -60,18 +67,15 @@ bed <- blast_out %>%
 if(nrow(bed) < 2){stop("Too few hits, try adjusting pident and coverage")}
 
 print("Snipping")
+
 print(paste0("hits = ", nrow(bed)))
 if(nrow(as_tibble(bed))>30){
   bed <- bed %>% dplyr::slice(1:30)
 }
 
-print(head(bed))
-
 print("Ranging")
 
 bed <- plyranges::as_granges(bed)
-
-head(bed)
 
 print("Reading")
 
@@ -82,9 +86,6 @@ print("Renaming")
 
 # rename  genome seqs
 names(genome_seq) <- sub(" .*", "", names(genome_seq))
-
-print(head(names(genome_seq)))
-print(head(bed))
 
 print("Getting seq")
 
@@ -101,13 +102,29 @@ print("Merging with query")
 # merge with transcribed repeat
 seqs <- c(repeat_seq, seqs)
 
-print("Writing")
+  if(is.null(args$species_name)){
+  
+  print("Writing")
+  
+  # write seqs to files
+  Biostrings::writeXStringSet(x = seqs, filepath = paste0(args$out_folder, "/", repeat_name, "_hits.fa"))
+  
+  print("Aligning")
+  
+  # perform multiple alignment
+  system(paste0("mafft --adjustdirection ", args$out_folder, "/", repeat_name, "_hits.fa > ", args$out_folder, "/", repeat_name, "_hits_aligned.fa"))
 
-# write seqs to files
-Biostrings::writeXStringSet(x = seqs, filepath = paste0(args$out_folder, "/", repeat_name, "_hits.fa"))
-
-print("Aligning")
-
-# perform multiple alignment
-system(paste0("mafft --adjustdirection ", args$out_folder, "/", repeat_name, "_hits.fa > ", args$out_folder, "/", repeat_name, "_hits_aligned.fa"))
-
+} else {
+  
+  print("Writing")
+  
+  # write seqs to files
+  Biostrings::writeXStringSet(x = seqs, filepath = paste0(args$out_folder, "/", repeat_name, "_", args$species_name,"_hits.fa"))
+  
+  print("Aligning")
+  
+  # perform multiple alignment
+  system(paste0("mafft --adjustdirection ", args$out_folder, "/", repeat_name, "_", args$species_name,"_hits.fa > ", args$out_folder, "/", repeat_name, "_", args$species_name,"_hits_aligned.fa"))
+  
+  
+}
