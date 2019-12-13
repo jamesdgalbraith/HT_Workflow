@@ -70,4 +70,3 @@ LINE_names <- LINEs %>%
 # extract and name intact LINEs seqs from all seq
 LINE_seqs <- Biostrings::getSeq(consensus_seq, LINEs)
 names(LINE_seqs) <- LINE_names$seqnames
-
