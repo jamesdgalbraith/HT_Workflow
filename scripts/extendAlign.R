@@ -1,49 +1,65 @@
 #!/usr/bin/env Rscript
 
-## Script  for creating alignements for manual annotation of repeats
-## TO DO: CREATE VERSION FOR MULTIPLE SEQUENCES
+## Script  for creating initial alignements for manual annotation of repeats
 
-library(argparse)
 suppressMessages(library(tidyverse))
 suppressMessages(library(plyranges))
 suppressMessages(library(BSgenome))
-parser <- ArgumentParser(description = "Script to extract flanking sequences around repeats")
 
-parser$add_argument("-f5", "--flank5", default = 2000, type = "double", help = "Length of 5' flanking sequence")
-parser$add_argument("-f3", "--flank3", default = 2000, type = "double", help = "Length of 3' flanking sequence")
-parser$add_argument("-qr", "--query_repeat", default = NULL, help = "Path to query repeats")
-parser$add_argument("-gn", "--genome", default = NULL, help = "Genome to search for repeat")
-parser$add_argument("-cv", "--coverage", default = 80, type = "double", help = "Minimum coverage by query repeat")
-parser$add_argument("-pi", "--pident", default = 95, type = "double", help = "Minimum percent identity to consensus")
-parser$add_argument("-of", "--out_folder", default = "output/", help = "Folder for output")
+species_hits <- read_tsv("~/all_genomes.txt", col_names = c("clade_name", "species_name", "genome_name"))
 
-args <- parser$parse_args()
+# set output folder
+out_folder <- "~/HT_Workflow/RTE-Snek/curation"
+if(!dir.exists(out_folder)){dir.create(out_folder, recursive = T)}
 
-# set and read in genome
-if(!file.exists(paste0(args$genome, ".fai"))){system(paste0("samtools faidx ", args$genome))}
-if(!dir.exists(args$out_folder)){dir.create(args$out_folder)}
-
-genome_fai <- read_tsv(paste0(args$genome, ".fai"), col_names = c("seqnames", "scaffold_length", "x3", "x4", "x5")) %>%
-  dplyr::select(1:2)
-genome_seq <- Biostrings::readDNAStringSet(filepath = args$genome)
-
-# set and read in repeats
-repeat_seq <- Biostrings::readDNAStringSet(filepath = args$query_repeat)
-repeat_names <- names(repeat_seq)
-
-# run script over all repeats
-purrr::map(.x = repeat_names, ~{
-  # Select repeat
-  working_repeat <- repeat_seq[.]
+for(i in 1:nrow(species_hits)){
   
-  # Get repeat name
-  working_name <- names(working_repeat)
   
-  # Write repeat to file
-  Biostrings::writeXStringSet(x = working_repeat, filepath = paste0(args$out_folder, "/", working_name, ".fa"))
+  clade <- species_hits$clade_name[i]
+  species_name <- species_hits$species_name[i]
+  genome_name <- species_hits$genome_name[i]
+  print(species_name)
   
-  # Search for repeat, rearrange output
-  blast_out <- read.table(text=system(paste0("blastn -query ", args$out_folder, "/", working_name, ".fa -db ", args$genome, " -outfmt \"6 sseqid sstart send pident qcovs bitscore length\""), intern = TRUE), col.names = c("seqnames", "sstart", "send", "pident", "qcovs", "bitscore", "length")) %>%
+  # set and read in genome and index
+  genome_path <- paste0("~/Genomes/", clade, "/", species_name, "/", genome_name)
+  
+  query_repeat <- "~/HT_Workflow/RTE-Snek/RTE-Snek.fasta"
+  
+  if(!file.exists(paste0(genome_path, ".nsq"))){system(paste0("makeblastdb -dbtype nucl -in ", genome_path))}
+  
+  blast_out <- read.table(text=system(paste0("blastn -evalue 0.00002 -num_threads 12 -reward 3 -penalty -4 -xdrop_ungap 80 -xdrop_gap 130 -xdrop_gap_final 150 -word_size 7 -dust yes -gapopen 30 -gapextend 6 -query ", query_repeat, " -db ", genome_path, " -outfmt \"6 sseqid sstart send pident qcovs bitscore length\""), intern = TRUE), col.names = c("seqnames", "sstart", "send", "pident", "qcovs", "bitscore", "length"))
+  #
+  blast_out <- as_tibble(blast_out) %>% dplyr::arrange(-bitscore) %>% dplyr::filter(length > 1000)
+  # if no reuslts skip to next species
+  if(nrow(blast_out) < 1){
+    next
+  }
+  
+  # create fasta index if necessary
+  if(!file.exists(paste0(genome_path, ".fai"))){system(paste0("samtools faidx ", genome_path))}
+  
+  # read in index
+  genome_fai <- read_tsv(paste0(genome_path, ".fai"), col_names = c("seqnames", "scaffold_length", "x3", "x4", "x5")) %>%
+    dplyr::select(1:2)
+  
+  # read in genome and garbage collect
+  genome_seq <- Biostrings::readDNAStringSet(filepath = genome_path)
+  gc()
+  
+  # name genome sequences to fit blast output
+  names(genome_seq) <- sub(" .*", "", names(genome_seq))
+  
+  # set flanks, query and coverage
+  flank5 <- 0
+  flank3 <- 0
+  
+  # set and read in repeats
+  repeat_seq <- Biostrings::readDNAStringSet(filepath = query_repeat)
+  names(repeat_seq) <- sub(" .*", "", names(repeat_seq))
+  repeat_name <- names(repeat_seq)
+  
+  # manipulate blast out
+  blast_out <- blast_out %>%
     as_tibble() %>%
     dplyr::mutate(seqnames = as.character(seqnames), sstart = as.double(sstart), send = as.double(send), length = as.double(length)) %>%
     dplyr::arrange(-bitscore) %>%
@@ -51,46 +67,50 @@ purrr::map(.x = repeat_names, ~{
            start = case_when(sstart < send ~ sstart, send < sstart ~ send),
            end = case_when(sstart > send ~ sstart, send > sstart ~ send))
   
-  # Remove repeat file
-  file.remove(paste0(args$out_folder, "/", working_name, ".fa"))
+  # if less than two hits move on to next sequence
+  if(nrow(as_tibble(blast_out))<2){
+    next
+  }
   
-  # Filter search table based on coverage and identity, extend and adjust
+  # filter based on coverage and identity, extend and adjust
   bed <- blast_out %>%
     inner_join(genome_fai) %>%
-    dplyr::filter(length * 100 / width(working_repeat) > args$coverage) %>%
-    dplyr::filter(pident >= args$pident) %>%
+    dplyr::filter(length > 1000) %>%
     arrange(-length) %>%
-    mutate(start = case_when(strand == "+" ~ start - args$flank5, strand == "-" ~ start - args$flank3),
-           end = case_when(strand == "-" ~ end + args$flank5, strand == "+" ~ end + args$flank3),
+    mutate(start = case_when(strand == "+" ~ start - flank5, strand == "-" ~ start - flank3),
+           end = case_when(strand == "-" ~ end + flank5, strand == "+" ~ end + flank3),
            start = case_when(start <= 1 ~ 1, start > 1 ~ start),
-           end = case_when(end > scaffold_length ~ scaffold_length, end <= scaffold_length ~ end),
-           name = paste0(seqnames, ":", start, "-", end, "(", strand, ")")) %>%
-    dplyr::select(seqnames, start, end, strand, name)
-
-  # If too big, reduce size of hits table
-  if(nrow(as_tibble(bed))>30){
-    bed <- bed %>% dplyr::slice(1:30)
+           end = case_when(end > scaffold_length ~ scaffold_length, end <= scaffold_length ~ end)) %>%
+    dplyr::select(seqnames, start, end, strand)
+  
+  
+  if(nrow(as_tibble(bed))>20){
+    bed <- bed %>% 
+      dplyr::slice(1:20)
   }
-
-  # Convert hit table to bed
+  
   bed <- plyranges::as_granges(bed)
-
-  # Get seqs
+  
+  bed <- reduce_ranges_directed(bed)
+  
+  bed_tbl <- bed %>%
+    as_tibble() %>%
+    mutate(name = paste0(seqnames, ":", start, "-", end, "(", strand, ")"))
+  
+  
+  # get seqs
   seqs <- Biostrings::getSeq(genome_seq, bed)
-
-  # Name seqs
-  names(seqs) <- GenomicRanges::elementMetadata(bed)[["name"]]
   
-  # Combine seqs with consensus repeat
-  seqs <- c(working_repeat, seqs)
-
-  # Write seqs to files
-  Biostrings::writeXStringSet(x = seqs, filepath = paste0(args$out_folder, "/", working_name, "_hits.fa"))
-
-  # Perform multiple alignment
-  system(paste0("mafft --adjustdirection ", args$out_folder, "/", working_name, "_hits.fa > ", args$out_folder, "/", working_name, "_hits_aligned.fa"))
+  # name seqs
+  names(seqs) <- bed_tbl$name
   
-  # Remove unaligned multifasta
-  file.remove(paste0(args$out_folder, "/", working_name, "_hits.fa"))
+  # merge with transcribed repeat
+  seqs <- c(repeat_seq, seqs)
   
-})
+  # write seqs to files
+  Biostrings::writeXStringSet(x = seqs, filepath = paste0(out_folder, "/", repeat_name, "_hits.fa"))
+  
+  # perform multiple alignment
+  system(paste0("mafft --localpair --maxiterate 10 --thread 12 ", out_folder, "/", repeat_name, "_hits.fa > ", out_folder, "/aligned/", repeat_name, "_", species_name, "_aligned.fa"))
+  
+}
