@@ -2,19 +2,18 @@
 Scripts used in the discovery, curation and analysis of horizonally transferred repeats in _Aipysurus laevis_
 
 ## Identification of repetitive sequences in _Aipysurus laevis_
-Repetitive sequences identified and classified CARP (Zeng et al. 2018) and RepeatModeler (Smit and Hubley)
-LINEs identified from Unclassified and Unknown repetitive sequences CARP and RepeatModeler using LINE_Finder.R
+Repetitive sequences identified and classified using CARP (Zeng et al. 2018) and RepeatModeler (Smit and Hubley)
+LINE_Finder.R - used to identify potential LINEs from Unclassified and Unknown repetitive sequences CARP and RepeatModeler based on protein domain presence
 
 ## Presence/absence of highly similar LINEs in closely related species
-BLAST other snake genomes for LINEs/BLAST snake transcriptomes for LINEs - bash
+BLAST other snake genomes for LINEs/BLAST snake transcriptomes for LINEs
 
 ## Presence/absence and curation of similar LINEs other highly divergent taxa
-repeat_blaster.R
-extendAlign.R
-extendAlignSolo.R
+repeat_blaster.R - used to identify similar LINEs using relaxed BLAST searchs
+extendAlign.R and variants - used to construct alignments of similar sequences found in each species. Alignments manually edited and consensus made in Geneious
 
-### Tree building
-Intact LINEs itendified with LINE_finder.R
+## Figure building - tree building and consensus plotting
+Intact LINEs itendified with lines_for_trees.R
 Alignment of intact LINEs - bash mafft
 Trimming - online Gblocks with "Allow smaller final blocks", "Allow gap positions within the final blocks" and "Allow less strict flanking positions"
 Tree building - RaXML
