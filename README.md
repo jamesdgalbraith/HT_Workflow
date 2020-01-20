@@ -22,4 +22,3 @@ mafft used to align intact LINEs
 Trimming of alignment - online Gblocks with "Allow smaller final blocks", "Allow gap positions within the final blocks" and "Allow less strict flanking positions"
 
 raxml.sh - used for tree building
-
