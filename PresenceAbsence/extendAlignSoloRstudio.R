@@ -4,34 +4,34 @@ suppressMessages(library(tidyverse))
 suppressMessages(library(plyranges))
 suppressMessages(library(BSgenome))
 
-species_hits <- read_tsv("~/all_genomes.txt", col_names = c("clade_name", "species_name", "genome_name"))
-# select species here
-species_hits <- species_hits %>% filter(grepl("Thamnophis_sirtalis", species_name))
-
 # set output folder
-out_folder <- "~/HT_Workflow/Rex1-Snek_1/curation/"
-i=1
+if(!dir.exists("curation/aligned")){dir.create("curation/aligned")}
+out_folder <- "curation/"
+genome_dir <- "~/Analysis/Genomes/"
 
 # set variables
-clade <- species_hits$clade_name[i]
-species_name <- species_hits$species_name[i]
-genome_name <- species_hits$genome_name[i]
+species_name <- "Notechis_scutatus"
+genome_name <- "TS10Xv2-PRI.fasta"
 print(species_name)
 
 # set and read in genome and index
-genome_path <- paste0("~/Genomes/", clade, "/", species_name, "/", genome_name)
+genome_path <- paste0(genome_dir, "/", species_name, "/", genome_name)
+
+if(!file.exists(paste0(genome_path, ".fai"))){system(paste0("samtools faidx ", genome_path))}
+
 genome_fai <- read_tsv(paste0(genome_path, ".fai"), col_names = c("seqnames", "scaffold_length", "x3", "x4", "x5")) %>%
   dplyr::select(1:2)
+
 genome_seq <- Biostrings::readDNAStringSet(filepath = genome_path)
 gc()
 names(genome_seq) <- sub(" .*", "", names(genome_seq))
 
 # set flanks, query and coverage as necessary
-flank5 <- 1700
-flank3 <- 300
-req_pident <- 94
-req_length <- 800
-query_repeat <- "~/HT_Workflow/Rex1-Snek_1/curation/Rex1-Snek_1_Thamnophis_sirtalis.fasta"
+flank5 <- 1000
+flank3 <- 1000
+req_pident <- 90
+req_length <- 500
+query_repeat <- "../Aipysurus/Aipysurus_family117394_refined.fasta"
 
 # set and read in repeats
 repeat_seq <- Biostrings::readDNAStringSet(filepath = query_repeat)
@@ -86,7 +86,7 @@ names(seqs) <- bed_tbl$name
 seqs <- c(repeat_seq, seqs)
 
 # write seqs to files
-Biostrings::writeXStringSet(x = seqs, filepath = paste0(out_folder, "/", repeat_name, "_hits.fa"))
+Biostrings::writeXStringSet(x = seqs, filepath = paste0(out_folder, "/", species_name, "_", repeat_name, "_hits.fa"))
 
 # perform multiple alignment
-system(paste0("mafft --localpair --maxiterate 10 --thread 12 ", out_folder, "/", repeat_name, "_hits.fa > ", out_folder, "/aligned/", repeat_name, ".fa"))
+system(paste0("mafft --localpair --maxiterate 10 --thread 4 ", out_folder, "/", species_name, "_", repeat_name, "_hits.fa > ", out_folder, "/aligned/", species_name, "_", repeat_name, ".fa"))
