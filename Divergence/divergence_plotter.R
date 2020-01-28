@@ -2,11 +2,11 @@
 
 library(tidyverse)
 
-repeat_list <- tibble(repeat_name = c("Proto2-Snek", "Rex1-Snek_2", "Rex1-Snek_1", "RTE-Snek"), max = c(260, 120, 120, 110))
-species_list <- tibble(species = c("Aipysurus_laevis", "Emydocephalus_ijimae", "Hydrophis_melanocephalus", "Notechis_scutatus", "Pseudonaja_textilis"),
-                       genome = c("assembly_20171114.fasta", "emyIji_1.0.fasta", "hydMel_1.0.fasta", "TS10Xv2-PRI.fasta", "EBS10Xv2-PRI.fasta"))
+repeat_list <- tibble(repeat_name = c("Proto2-Snek", "Rex1-Snek_2", "Rex1-Snek_1", "RTE-Snek", "RTE-Snek_2"), max = c(260, 120, 120, 110, 150))
+species_list <- tibble(species = c("Aipysurus_laevis", "Emydocephalus_ijimae", "Hydrophis_melanocephalus", "Notechis_scutatus", "Pseudonaja_textilis", "Laticauda_colubrina", "Ophiophagus_hannah"),
+                       genome = c("assembly_20171114.fasta", "emyIji_1.0.fasta", "hydMel_1.0.fasta", "TS10Xv2-PRI.fasta", "EBS10Xv2-PRI.fasta", "latCor_1.0.fasta", "OphHan1.0.fasta"))
 for(i in 1:nrow(species_list)){
-  for(j in 1:4){
+  for(j in 1:nrow(repeat_list)){
     
     # set query repeat and genome path
     query_repeat <- paste0("~/HT_Workflow/", repeat_list$repeat_name[j], "/", repeat_list$repeat_name[j], ".fasta")
