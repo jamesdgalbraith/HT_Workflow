@@ -27,7 +27,7 @@ for(i in 1:nrow(species_list)){
   gc()
   names(genome_seq) <- sub(" .*", "", names(genome_seq))
   
-  
+  j=2
   for(j in 1:nrow(repeat_list)){
     
     query_repeat <- paste0("~/HT_Workflow/", "Divergence/", repeat_list$repeat_name[j], ".fasta")
@@ -41,17 +41,13 @@ for(i in 1:nrow(species_list)){
       as_granges() %>%
       GenomicRanges::reduce(min.gapwidth = 200)
     
-    bed_tbl <- bed %>%
-      as_tibble() %>%
-      mutate(name = paste0(seqnames, ":", start, "-", end, "(", strand, ")"))
-    
     if(nrow(bed_tbl)>0){
       
       # get seqs
       seqs <- Biostrings::getSeq(genome_seq, bed)
       
-      names(seqs) <- bed_tbl$name
-      
+      names(seqs) <- paste0(seqnames(bed), ":", ranges(bed), "(", strand(bed), ")")
+
       Biostrings::writeXStringSet(x = seqs, filepath = paste0("~/HT_Workflow/Divergence/scratch/temp.fa"))
       
       blastn_recip <- read.table(text=system(paste0("blastn -dust yes -query ~/HT_Workflow/Divergence/scratch/temp.fa -subject ~/HT_Workflow/Divergence/compiled_LINEs.fasta -outfmt \"6 sseqid sstart send pident qcovs bitscore length mismatch evalue qseqid qlen slen\""), intern = TRUE), col.names = c("seqnames", "sstart", "send", "pident", "qcovs", "bitscore", "length", "mismatch", "evalue", "qseqid", "qlen", "slen")) %>%
@@ -64,6 +60,10 @@ for(i in 1:nrow(species_list)){
         group_by(qseqid) %>%
         dplyr::slice(1) %>%
         filter(seqnames == repeat_list$repeat_name[j])
+      
+      blastn_recip %>%
+        filter(pident >= 97, length >= 50)
+      
       
       blastn_recip_bp <- blastn_recip %>%
         group_by(div) %>%
