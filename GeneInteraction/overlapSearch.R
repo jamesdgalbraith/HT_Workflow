@@ -51,14 +51,14 @@ blastn_recip <- read_tsv(system(paste0("blastn -dust yes -query GeneInteraction/
   select(qseqid, sseqid) %>%
   dplyr::rename(names = qseqid, repeat_name = sseqid) %>%
   ungroup()
-
 recip_tibble <- bed %>%
   as_tibble() %>%
   mutate(seqnames = as.character(seqnames)) %>%
   dplyr::rename(hit_width = width) %>%
   inner_join(blastn_recip)
-
-recip_ranges <- as_granges(recip_tibble)
+recip_ranges <- recip_tibble %>%
+  select(-hit_width, -names) %>%
+  as_granges()
 
 # read in aipysurus annotation gff and fasta
 aipysurus_genome_annotation <- plyranges::read_gff(file = "~/Genomes/Reptiles/Aipysurus_laevis/kmer_49.pilon_x2.sorted_annotation.gff")
@@ -74,40 +74,107 @@ aipysurus_genome_annotation_seq_names <- tibble(names = names(aipysurus_genome_a
 aipysurus_genome_annotation_tibble <- aipysurus_genome_annotation %>%
   as_tibble()
 
+table(aipysurus_genome_annotation_tibble$type)
+
 # create gffs and tibbles of each type
 utr_gff <- aipysurus_genome_annotation_tibble %>%
   filter(type %in% c("three_prime_UTR", "five_prime_UTR")) %>%
   select(seqnames, start, end, strand, type, ID) %>%
   mutate(ID = sub(".utr.*", "", ID)) %>%
-  inner_join(aipysurus_genome_annotation_seq_names)
+  inner_join(aipysurus_genome_annotation_seq_names) %>%
+  select(-ID)
 utr_gff_ranges <- as_granges(utr_gff)
 mrna_gff <- aipysurus_genome_annotation_tibble %>%
   filter(type == "mRNA") %>%
   select(seqnames, start, end, strand, type, ID) %>%
-  inner_join(aipysurus_genome_annotation_seq_names)
+  inner_join(aipysurus_genome_annotation_seq_names) %>%
+  select(-ID)
 mrna_gff_ranges <- as_granges(mrna_gff)
 gene_gff <- aipysurus_genome_annotation_tibble %>%
   filter(type == "gene") %>%
   select(seqnames, start, end, strand, type, ID) %>%
   mutate(ID = sub("\\.TU\\.", ".model.", ID)) %>%
-  inner_join(aipysurus_genome_annotation_seq_names)
+  inner_join(aipysurus_genome_annotation_seq_names) %>%
+  select(-ID)
 gene_gff_ranges <- as_granges(gene_gff)
 cds_gff <- aipysurus_genome_annotation_tibble %>%
   filter(type == "CDS") %>%
   select(seqnames, start, end, strand, type, ID) %>%
   mutate(ID = sub("cds\\.", "", ID)) %>%
-  inner_join(aipysurus_genome_annotation_seq_names)
+  inner_join(aipysurus_genome_annotation_seq_names) %>%
+  select(-ID)
 cds_gff_ranges <- as_granges(cds_gff)
 exon_gff <- aipysurus_genome_annotation_tibble %>%
   filter(type == "exon") %>%
   mutate(ID = sub("\\.exon.*", "", ID)) %>%
   select(seqnames, start, end, strand, type, ID) %>%
-  inner_join(aipysurus_genome_annotation_seq_names)
+  inner_join(aipysurus_genome_annotation_seq_names) %>%
+  select(-ID)
 exon_gff_ranges <- as_granges(exon_gff)
 
-# intersect ranges
-utr_overlap_ranges <- suppressWarnings(find_overlaps(recip_ranges, utr_gff_ranges))
-mrna_overlap_ranges <- suppressWarnings(find_overlaps(recip_ranges, mrna_gff_ranges))
-cds_overlap_ranges <- suppressWarnings(find_overlaps(recip_ranges, cds_gff_ranges))
-exon_overlap_ranges <- suppressWarnings(find_overlaps(recip_ranges, exon_gff_ranges))
+precede <- pair_precede(recip_ranges, aipysurus_genome_annotation) %>%
+  as_tibble() %>%
+  dplyr::select(-granges.y.seqnames, -score, -phase, -X5_prime_partial, -X3_prime_partial, -Parent, -Name, -source) %>%
+  rename(seqnames = granges.x.seqnames, repeat_start = granges.x.start, repeat_end = granges.x.end, ann_start = granges.y.start, ann_end = granges.y.end,
+         repeat_strand = granges.x.strand, ann_strand = granges.y.strand) %>%
+  mutate(seqnames = as.character(seqnames), ann_strand = as.character(ann_strand), repeat_strand = as.character(repeat_strand),
+         ID = sub("\\.TU\\.", ".model.", ID), ID = sub("cds\\.", "", ID), ID = sub("\\.exon.*", "", ID), ID = sub(".utr.*", "", ID)) %>%
+  inner_join(aipysurus_genome_annotation_seq_names) %>%
+  select(-ID, -granges.y.width) %>%
+  base::unique() %>%
+  filter(grepl("UTR", type))
 
+
+utr_distance_gappy <- pair_overlaps(recip_ranges, aipysurus_genome_annotation, maxgap = 1000) %>%
+  as_tibble() %>%
+  dplyr::select(-granges.y.seqnames, -score, -phase, -X5_prime_partial, -X3_prime_partial, -Parent, -Name, -source) %>%
+  rename(seqnames = granges.x.seqnames, repeat_start = granges.x.start, repeat_end = granges.x.end, ann_start = granges.y.start, ann_end = granges.y.end,
+         repeat_strand = granges.x.strand, ann_strand = granges.y.strand) %>%
+  mutate(seqnames = as.character(seqnames), ann_strand = as.character(ann_strand), repeat_strand = as.character(repeat_strand),
+         ID = sub("\\.TU\\.", ".model.", ID), ID = sub("cds\\.", "", ID), ID = sub("\\.exon.*", "", ID), ID = sub(".utr.*", "", ID)) %>%
+  inner_join(aipysurus_genome_annotation_seq_names) %>%
+  select(-ID, -granges.y.width) %>%
+  base::unique() %>%
+  filter(grepl("UTR", type)) %>%
+  # select(gene, type) %>%
+  # base::unique() %>%
+  View()
+
+# covert ranges object to tibble, manipulate to remove unnecessary data and determine gene names
+all_overlap_ranges_tibble <- all_overlap_ranges %>%
+  as_tibble() %>%
+  dplyr::select(-granges.y.seqnames, -score, -phase, -X5_prime_partial, -X3_prime_partial, -Parent, -Name, -source) %>%
+  rename(seqnames = granges.x.seqnames, repeat_start = granges.x.start, repeat_end = granges.x.end, ann_start = granges.y.start, ann_end = granges.y.end,
+         repeat_strand = granges.x.strand, ann_strand = granges.y.strand) %>%
+  mutate(seqnames = as.character(seqnames), ann_strand = as.character(ann_strand), repeat_strand = as.character(repeat_strand),
+         ID = sub("\\.TU\\.", ".model.", ID), ID = sub("cds\\.", "", ID), ID = sub("\\.exon.*", "", ID), ID = sub(".utr.*", "", ID)) %>%
+  inner_join(aipysurus_genome_annotation_seq_names) %>%
+  select(-ID, -granges.y.width, -granges.x.width) %>%
+  base::unique()
+
+# write tibble to file
+write_tsv(all_overlap_ranges_tibble, "GeneInteraction/insertion_sites.tsv", col_names = T)
+
+# extract repeat insertions within 5000bp of 5' UTRs
+utr_distance_gappy <- pair_overlaps(recip_ranges, aipysurus_genome_annotation, maxgap = 5000) %>%
+  as_tibble() %>%
+  dplyr::select(-granges.y.seqnames, -score, -phase, -X5_prime_partial, -X3_prime_partial, -Parent, -Name, -source) %>%
+  rename(seqnames = granges.x.seqnames, repeat_start = granges.x.start, repeat_end = granges.x.end, ann_start = granges.y.start, ann_end = granges.y.end,
+         repeat_strand = granges.x.strand, ann_strand = granges.y.strand) %>%
+  mutate(seqnames = as.character(seqnames), ann_strand = as.character(ann_strand), repeat_strand = as.character(repeat_strand),
+         ID = sub("\\.TU\\.", ".model.", ID), ID = sub("cds\\.", "", ID), ID = sub("\\.exon.*", "", ID), ID = sub(".utr.*", "", ID)) %>%
+  inner_join(aipysurus_genome_annotation_seq_names) %>%
+  select(-ID, -granges.y.width, -granges.x.width) %>%
+  base::unique() %>%
+  filter(grepl("UTR", type))
+
+# filter repeat insertions up to be upstream of 5' UTRs
+upstream <- utr_distance_gappy %>%
+  filter(type == "five_prime_UTR") %>%
+  filter((ann_strand == "+" & repeat_end < ann_start) | (ann_strand == "-" & repeat_start > ann_end))
+# write_tsv(upstream, "GeneInteraction/upstream.tsv", col_names = T)
+
+# select insertions into mRNA
+mrna_overlaps <- all_overlap_ranges_tibble %>%
+  filter(type == "mRNA")
+write_tsv(mrna_overlaps, "GeneInteraction/mrna_overlaps.tsv", col_names = T)
