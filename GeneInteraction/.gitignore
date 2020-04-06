@@ -5,3 +5,16 @@ namedGenes.fa
 unnamedGenes.fa
 upstream.tsv
 utr_hits.tsv
+ACAA1_aipysurus_3utr.fa
+ACAA1_elpaid_extended_3utr.fa
+ACAA1_elpaid_extended_3utr_a.fa
+ACAA1_elpaid_extended_3utr_a_aligned.fa
+ACAA1_elpaid_extended_3utr_aligned.fa
+ACAA1_elpaid_extended_search_3utr.fa
+ACAA1_elpaid_extended_search_3utr_aligned.fa
+TranscriptomeSubsets
+contigs_for_bams.txt
+exon_overlap_annotation.bed
+mrna_overlap_annotation.bed
+mrna_overlap_repeat.bed
+typed_relevant_ranges.bed
