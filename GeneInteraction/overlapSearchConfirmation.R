@@ -275,22 +275,41 @@ sneks_upstream <- pair_overlaps(aipysurus_sneks_annotation_ranges, five_prime_ut
   dplyr::rename(start = repeat_start, end = repeat_end, strand = repeat_strand) %>%
   plyranges::as_granges()
 
-# remove upstream sneks in genes
+# remove upstream sneks found in genes
 sneks_upstream_nongene <- filter_by_non_overlaps(sneks_upstream, gene_gff_ranges) %>%
   as_tibble() %>%
   dplyr::arrange(gene) %>%
-  dplyr::mutate(X5 = ".", name = paste0(gene, "#", m_repeat)) %>%
-  dplyr::select(seqnames, start, end, name, X5, strand)
-sneks_upstream_nongene_ranges <- plyranges::as_granges(sneks_upstream_nongene)
+  select(-width) %>%
+  dplyr::mutate(name = paste0(gene, "#", m_repeat))
+
+
+relevant_snek_insertions <- sneks_in_exons %>%
+  dplyr::mutate(name = paste0(gene, "#", m_repeat)) %>%
+  dplyr::rename(start = repeat_start, end = repeat_end, strand = repeat_strand) %>%
+  rbind(sneks_upstream_nongene)
+
+
+relevant_snek_insertions_ranges <- plyranges::as_granges(relevant_snek_insertions)
 
 # get sequence of upstream repeats to confirm
-sneks_upstream_nongene_seq <- Biostrings::getSeq(genome_seq, sneks_upstream_nongene_ranges)
-names(sneks_upstream_nongene_seq) <- sneks_upstream_nongene_ranges$name
-Biostrings::writeXStringSet(sneks_upstream_nongene_seq, "GeneInteraction/insertions.fa")
+relevant_snek_insertions_seq <- Biostrings::getSeq(genome_seq, relevant_snek_insertions_ranges)
+names(relevant_snek_insertions_seq) <- relevant_snek_insertions_ranges$name
+Biostrings::writeXStringSet(relevant_snek_insertions_seq, "GeneInteraction/insertions.fa")
 
-confirmation_blast_out <- read_tsv(system(paste0("blastn -dust yes -query GeneInteraction/insertions.fa -db ~/SnakeAnnotation/snake_annotation.lib -task blastn -outfmt \"6 qseqid qstart qend sseqid sstart send pident qcovs bitscore length mismatch evalue qseqid slen qlen\""), intern = TRUE),
+# peroform blast search against repeat annotation library
+confirmation_blast_out <- read_tsv(system(paste0("blastn -dust yes -query GeneInteraction/insertions.fa -db ~/SnakeAnnotation/snake_annotation.lib -outfmt \"6 qseqid qstart qend sseqid sstart send pident qcovs bitscore length mismatch evalue qseqid slen qlen\""), intern = TRUE),
          col_names = c("gene", "qstart", "qend", "seqnames", "sstart", "send", "pident", "qcovs", "bitscore", "length", "mismatch", "evalue", "slen", "qlen"))
-  
+
+# filter out repeats not identified as insertions
 confirmed_repeats <- confirmation_blast_out %>%
   dplyr::mutate(gene_repeat = sub(".*#", "", gene), database_repeat = sub("#.*", "", seqnames)) %>%
   dplyr::filter(gene_repeat == database_repeat)
+
+# create bed of insertions
+confirmed_repeats_bed <- relevant_snek_insertions %>%
+  dplyr::filter(name %in% confirmed_repeats$gene) %>%
+  dplyr::mutate(X5 = ".") %>%
+  dplyr::select(seqnames, start, end, name, X5, strand)
+
+# write bed to file
+readr::write_tsv(confirmed_repeats_bed, "GeneInteraction/speciesComparison/insertions.bed", col_names = F)
