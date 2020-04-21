@@ -18,3 +18,14 @@ exon_overlap_annotation.bed
 mrna_overlap_annotation.bed
 mrna_overlap_repeat.bed
 typed_relevant_ranges.bed
+aipysurus_lines.rds
+aipysurus_lines.tar.gz
+coding_exon_repeats.fasta
+kmer_49.pilon_x2.sorted.fasta.LINEs.out
+kmer_49.pilon_x2.sorted.fasta.out
+snekless_repeats.fa
+utr_repeats.fasta
+all_LINEs_in_coding_exons.fasta
+insertions.bed
+insertions.fa
+speciesComparison
