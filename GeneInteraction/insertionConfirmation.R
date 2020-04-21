@@ -4,7 +4,7 @@ library(plyranges)
 library(tidyverse)
 
 # read bed of insertion locations
-gene_list <- read_bed("GeneInteraction/speciesComparison/upstream_insertions.bed")
+gene_list <- read_tsv("GeneInteraction/speciesComparison/insertions.bed", col_names = c("seqnames", "start", "end", "name", "X5", "strand"))
 
 # read in genome sequence
 genome_seq <- Biostrings::readDNAStringSet(filepath = "~/Genomes/Reptiles/Aipysurus_laevis/kmer_49.pilon_x2.sorted.fasta")
@@ -12,22 +12,18 @@ gc()
 names(genome_seq) <- sub(" .*", "", names(genome_seq))
 genome_idx <- tibble(seqnames = names(genome_seq), scaffold_length = as.double(width(genome_seq)))
 
-insertion_seq <- getSeq(gene_list, extended_repeat_ranges)
-names(insertion_seq) <- gene_list$name
-Biostrings::writeXStringSet(insertion_seq, "GeneInteraction/speciesComparison/temp.fa")
-
 # make ranges object of extended sequences
 extended_repeat_ranges <- gene_list %>%
   as_tibble() %>%
-  mutate(seqnames = as.character(seqnames), start = start - 2000, end = end + 2000) %>%
-  inner_join(genome_idx) %>%
-  mutate(start = case_when(start < 1 ~ 1, start >= 1 ~ start),
+  dplyr::mutate(start = start - 2000, end = end + 2000) %>%
+  dplyr::inner_join(genome_idx) %>%
+  dplyr::mutate(start = case_when(start < 1 ~ 1, start >= 1 ~ start),
          end = case_when(end > scaffold_length ~ scaffold_length, end <= scaffold_length ~ end)) %>%
-  dplyr::select(-width, -score, -scaffold_length) %>%
-  as_granges()
+  dplyr::select(-X5,-scaffold_length) %>%
+  plyranges::as_granges()
 
 # get sequence write fasta
-extended_repeat_seq <- getSeq(genome_seq, extended_repeat_ranges)
+extended_repeat_seq <- Biostrings::getSeq(genome_seq, extended_repeat_ranges)
 names(extended_repeat_seq) <- extended_repeat_ranges$name
 Biostrings::writeXStringSet(extended_repeat_seq, "GeneInteraction/speciesComparison/temp.fa")
 
@@ -122,8 +118,7 @@ for(i in 1:base::length(gene_list$name)){
 
   compiled_seq <- c(aipysurus_cleaned_seq[grepl(gene_list$name[i], names(aipysurus_cleaned_seq))],
                     emydocephalus_cleaned_seq[grepl(gene_list$name[i], names(emydocephalus_cleaned_seq))],
-                    hydrophis_cleaned_seq[grepl(gene_list$name[i], names(hydrophis_cleaned_seq))],
-                    notechis_cleaned_seq[grepl(gene_list$name[i], names(notechis_cleaned_seq))])
+                    hydrophis_cleaned_seq[grepl(gene_list$name[i], names(hydrophis_cleaned_seq))])
   
   if(base::length(compiled_seq) > 1){
     
@@ -133,4 +128,3 @@ for(i in 1:base::length(gene_list$name)){
   }
 }
 
-gene_list %>% as_tibble()
