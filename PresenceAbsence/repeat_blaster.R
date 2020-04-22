@@ -4,7 +4,7 @@ suppressMessages(library(tidyverse))
 suppressMessages(library(plyranges))
 suppressMessages(library(BSgenome))
 
-repeats <- c("~/HT_Workflow/Proto2-Snek/Proto2-Snek.fasta", "~/HT_Workflow/RTE-Snek/RTE-Snek.fasta", "~/HT_Workflow/Rex1-Snek_1/Rex1-Snek_1.fasta", "~/HT_Workflow/Rex1-Snek_2/Rex1-Snek_2.fasta")
+repeats <- c("~/HT_Workflow/Proto2-Snek/Proto2-Snek.fasta", "~/HT_Workflow/RTE-Snek/RTE-Snek.fasta", "~/HT_Workflow/Rex1-Snek_1/Rex1-Snek_1.fasta", "~/HT_Workflow/Rex1-Snek_2/Rex1-Snek_2.fasta", "~/HT_Workflow/Rex1-Snek_3/Rex1-Snek_3.fasta", "~/HT_Workflow/Rex1-Snek_4/Rex1-Snek_4.fasta")
 
 
 species_list <- read_tsv("~/all_genomes.txt", col_names = c("clade_name", "species_name", "genome_name")) %>%

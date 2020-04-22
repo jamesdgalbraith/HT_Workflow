@@ -311,5 +311,8 @@ confirmed_repeats_bed <- relevant_snek_insertions %>%
   dplyr::mutate(X5 = ".") %>%
   dplyr::select(seqnames, start, end, name, X5, strand)
 
+# create output directory if absent
+if(!dir.exists("GeneInteraction/speciesComparison/")){dir.create("GeneInteraction/speciesComparison/")}
+
 # write bed to file
 readr::write_tsv(confirmed_repeats_bed, "GeneInteraction/speciesComparison/insertions.bed", col_names = F)

@@ -19,8 +19,7 @@ consensus <- read_tsv("raw_data/Aipysurus_laevis_Denovo_TE_Library.fasta.fai", c
 # filter for long non repeat and not unknown repeats and short sequences
 candidate_names <- consensus %>%
   dplyr::filter(end >= 2300, !grepl("Unclassified", seqnames), !grepl(":", seqnames)) %>%
-  dplyr::mutate(seqnames = gsub("#.*", "", seqnames)) # %>%
-  # dplyr::filter(seqnames %in% c("family098280_consensus", "family137632_consensus", "family137633_consensus"))
+  dplyr::mutate(seqnames = gsub("#.*", "", seqnames))
 
 # create tibble of above granges object
 candidates <- candidate_names  %>%
