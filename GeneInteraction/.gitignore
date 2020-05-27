@@ -31,3 +31,12 @@ insertions.fa
 speciesComparison
 overlapSearch.R
 overlapSearch2.R
+CARP_LINEs.fasta
+CARP_LINEs.fasta.nhr
+CARP_LINEs.fasta.nin
+CARP_LINEs.fasta.nsq
+all_line_insertions.fa
+all_raw_line_insertions.fa
+relevant_insertions.tsv
+relevant_insertions_fixed.tsv
+relevant_insertions_further_fixed.tsv

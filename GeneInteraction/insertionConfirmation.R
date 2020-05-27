@@ -4,7 +4,8 @@ library(plyranges)
 library(tidyverse)
 
 # read bed of insertion locations
-gene_list <- read_tsv("GeneInteraction/speciesComparison/insertions.bed", col_names = c("seqnames", "start", "end", "name", "X5", "strand"))
+gene_list <- read_tsv("GeneInteraction/relevant_insertions_fixed.tsv") %>%
+  mutate(appended_names = paste0(gene, "#", m_repeat), repeat_length = end - start + 1)
 
 # read in genome sequence
 genome_seq <- Biostrings::readDNAStringSet(filepath = "~/Genomes/Reptiles/Aipysurus_laevis/kmer_49.pilon_x2.sorted.fasta")
@@ -19,12 +20,12 @@ extended_repeat_ranges <- gene_list %>%
   dplyr::inner_join(genome_idx) %>%
   dplyr::mutate(start = case_when(start < 1 ~ 1, start >= 1 ~ start),
          end = case_when(end > scaffold_length ~ scaffold_length, end <= scaffold_length ~ end)) %>%
-  dplyr::select(-X5,-scaffold_length) %>%
+  dplyr::select(-scaffold_length) %>%
   plyranges::as_granges()
 
 # get sequence write fasta
 extended_repeat_seq <- Biostrings::getSeq(genome_seq, extended_repeat_ranges)
-names(extended_repeat_seq) <- extended_repeat_ranges$name
+names(extended_repeat_seq) <- extended_repeat_ranges$appended_names
 Biostrings::writeXStringSet(extended_repeat_seq, "GeneInteraction/speciesComparison/temp.fa")
 
 # search Emydocephalus
@@ -33,8 +34,8 @@ emydocephalus_blast_out <- read_tsv(system(paste0("blastn -dust yes -query GeneI
 
 # select best hits
 emydocephalus_blast_out <- emydocephalus_blast_out %>%
-  filter(qcovs >= 40, pident >= 90) %>%
-  mutate(strand = case_when(sstart > send ~ "-", send > sstart ~ "+"),
+  dplyr::filter(qcovs >= 40, pident >= 90) %>%
+  dplyr::mutate(strand = case_when(sstart > send ~ "-", send > sstart ~ "+"),
          start = case_when(sstart < send ~ sstart, send < sstart ~ send),
          end = case_when(sstart > send ~ sstart, send > sstart ~ send)) %>%
   dplyr::select(seqnames, start, end, strand, gene)
@@ -49,11 +50,11 @@ mcols(emydocephalus_ranges_r) <- DataFrame(gene = extractList(mcols(emydocephalu
 
 # select one hit per repeat
 emydocephalus_cleaned <- emydocephalus_ranges_r %>%
-  mutate(gene = unlist(base::unique(gene))) %>%
+  dplyr::mutate(gene = unlist(base::unique(gene))) %>%
   as_tibble() %>%
   group_by(gene) %>%
-  arrange(-width) %>%
-  slice(1) %>%
+  dplyr::arrange(-width) %>%
+  dplyr::slice(1) %>%
   ungroup()
 
 # Hydrophis
@@ -62,8 +63,8 @@ hydrophis_blast_out <- read_tsv(system(paste0("blastn -dust yes -query GeneInter
 
 # select best hits
 hydrophis_blast_out <- hydrophis_blast_out %>%
-  filter(qcovs >= 40, pident >= 90) %>%
-  mutate(strand = case_when(sstart > send ~ "-", send > sstart ~ "+"),
+  dplyr::filter(qcovs >= 40, pident >= 90) %>%
+  dplyr::mutate(strand = case_when(sstart > send ~ "-", send > sstart ~ "+"),
          start = case_when(sstart < send ~ sstart, send < sstart ~ send),
          end = case_when(sstart > send ~ sstart, send > sstart ~ send)) %>%
   dplyr::select(seqnames, start, end, strand, gene)
@@ -78,16 +79,16 @@ mcols(hydrophis_ranges_r) <- DataFrame(gene = extractList(mcols(hydrophis_ranges
 
 # select one hit per repeat
 hydrophis_cleaned <- hydrophis_ranges_r %>%
-  mutate(gene = unlist(base::unique(gene))) %>%
+  dplyr::mutate(gene = unlist(base::unique(gene))) %>%
   as_tibble() %>%
   group_by(gene) %>%
-  arrange(-width) %>%
-  slice(1) %>%
+  dplyr::arrange(-width) %>%
+  dplyr::slice(1) %>%
   ungroup()
 
 # Name genes and get sequences
 aipysurus_cleaned <- extended_repeat_ranges %>%
-  mutate(gene = paste0("Aipysurus laevis ", name))
+  dplyr::mutate(gene = paste0("Aipysurus laevis ", appended_names))
 aipysurus_cleaned_seq <- getSeq(genome_seq, aipysurus_cleaned)
 names(aipysurus_cleaned_seq) <- aipysurus_cleaned$gene
 
@@ -97,7 +98,7 @@ gc()
 names(genome_seq) <- sub(" .*", "", names(genome_seq))
 
 emydocephalus_cleaned <- emydocephalus_cleaned %>%
-  mutate(gene = paste0("Emydocephalus ijimae ", gene)) %>%
+  dplyr::mutate(gene = paste0("Emydocephalus ijimae ", gene)) %>%
   plyranges::as_granges()
 emydocephalus_cleaned_seq <- getSeq(genome_seq, emydocephalus_cleaned)
 names(emydocephalus_cleaned_seq) <- emydocephalus_cleaned$gene
@@ -108,7 +109,7 @@ gc()
 names(genome_seq) <- sub(" .*", "", names(genome_seq))
 
 hydrophis_cleaned <- hydrophis_cleaned %>%
-  mutate(gene = paste0("Hydrophis melanocephalus ", gene)) %>%
+  dplyr::mutate(gene = paste0("Hydrophis melanocephalus ", gene)) %>%
   plyranges::as_granges()
 hydrophis_cleaned_seq <- getSeq(genome_seq, hydrophis_cleaned)
 names(hydrophis_cleaned_seq) <- hydrophis_cleaned$gene
@@ -116,14 +117,14 @@ names(hydrophis_cleaned_seq) <- hydrophis_cleaned$gene
 # compile sequences and align
 for(i in 1:base::length(gene_list$name)){
 
-  compiled_seq <- c(aipysurus_cleaned_seq[grepl(gene_list$name[i], names(aipysurus_cleaned_seq))],
-                    emydocephalus_cleaned_seq[grepl(gene_list$name[i], names(emydocephalus_cleaned_seq))],
-                    hydrophis_cleaned_seq[grepl(gene_list$name[i], names(hydrophis_cleaned_seq))])
+  compiled_seq <- c(aipysurus_cleaned_seq[grepl(gene_list$appended_names[i], names(aipysurus_cleaned_seq))],
+                    emydocephalus_cleaned_seq[grepl(gene_list$appended_names[i], names(emydocephalus_cleaned_seq))],
+                    hydrophis_cleaned_seq[grepl(gene_list$appended_names[i], names(hydrophis_cleaned_seq))])
   
   if(base::length(compiled_seq) > 1){
     
     writeXStringSet(compiled_seq, "GeneInteraction/speciesComparison/temp.fa")
-    system(paste0("mafft --adjustdirection --localpair --thread 12 GeneInteraction/speciesComparison/temp.fa > GeneInteraction/speciesComparison/", gene_list$name[i], "_aligned.fa"))
+    system(paste0("mafft --adjustdirection --localpair --thread 12 GeneInteraction/speciesComparison/temp.fa > GeneInteraction/speciesComparison/", gene_list$appended_names[i], "_aligned.fa"))
     
   }
 }
