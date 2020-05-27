@@ -1,10 +1,8 @@
 # Script to search for repeats in other metazoan genomes (relaxed blast parameters)
 
 suppressMessages(library(tidyverse))
-suppressMessages(library(plyranges))
-suppressMessages(library(BSgenome))
 
-repeats <- c("~/HT_Workflow/Proto2-Snek/Proto2-Snek.fasta", "~/HT_Workflow/RTE-Snek/RTE-Snek.fasta", "~/HT_Workflow/Rex1-Snek_1/Rex1-Snek_1.fasta", "~/HT_Workflow/Rex1-Snek_2/Rex1-Snek_2.fasta", "~/HT_Workflow/Rex1-Snek_3/Rex1-Snek_3.fasta", "~/HT_Workflow/Rex1-Snek_4/Rex1-Snek_4.fasta")
+repeats <- c("Proto2-Snek", "RTE-Snek_1", "RTE-Snek_2", "Rex1-Snek_1", "Rex1-Snek_2", "Rex1-Snek_3", "Rex1-Snek_4", "RTE-Snek_2")
 
 
 species_list <- read_tsv("~/all_genomes.txt", col_names = c("clade_name", "species_name", "genome_name")) %>%
@@ -24,9 +22,9 @@ for(j in 1:length(repeats)){
     
     print(paste0("Searching for ", query_repeat, " in ", species_list$genome_path[i]))
     
-    blast_out <- read.table(text=system(paste0("blastn -evalue 0.00002 -num_threads 12 -reward 3 -penalty -4 -xdrop_ungap 80 -xdrop_gap 130 -xdrop_gap_final 150 -word_size 7 -dust yes -gapopen 30 -gapextend 6 -query ", query_repeat, " -db ", genome_path, " -outfmt \"6 sseqid sstart send pident qcovs bitscore length\""), intern = TRUE), col.names = c("seqnames", "sstart", "send", "pident", "qcovs", "bitscore", "length")) %>%
+    blast_out <- read.table(text=system(paste0("blastn -evalue 0.00002 -num_threads 12 -reward 3 -penalty -4 -xdrop_ungap 80 -xdrop_gap 130 -xdrop_gap_final 150 -word_size 7 -dust yes -gapopen 30 -gapextend 6 -query ~/HT_Workflow/", query_repeat, "/", query_repeat, ".fasta -db ", genome_path, " -outfmt \"6 sseqid sstart send pident qcovs bitscore length\""), intern = TRUE), col.names = c("seqnames", "sstart", "send", "pident", "qcovs", "bitscore", "length")) %>%
       as_tibble() %>%
-      filter(length > 500, pident > 70) %>%
+      filter(length > 500) %>%
       mutate(seqnames = as.character(seqnames))
     
     if(nrow(blast_out) > 0){
@@ -39,42 +37,160 @@ for(j in 1:length(repeats)){
     
   }
   
-  write_tsv(all_blast_out, paste0("blaster/", sub("~.*/", "", sub(".fasta", "", query_repeat)), "_in_other_species.tsv"), col_names = T)
+  write_tsv(all_blast_out, paste0("PresenceAbsence/blaster/",  query_repeat, "_in_other_species.tsv"), col_names = T)
   
 }
 
 # Count number in each species
-Proto2 <- read_tsv("blaster/Proto2-Snek_in_other_species.tsv", col_names = c("sseqid", "sstart", "send", "pident", "qcovs", "bitscore", "length", "genome_path"), skip = 1) %>%
+Proto2_out <- read_tsv("PresenceAbsence/blaster/Proto2-Snek_in_other_species.tsv", col_names = c("sseqid", "sstart", "send", "pident", "qcovs", "bitscore", "length", "genome_path"), skip = 1) %>%
+  filter(length >= 1000)
+
+Proto2_above_75 <- Proto2_out %>%
+  filter(pident >= 75) %>%
+  select(genome_path)
+
+Proto2_above_75 <- tibble(species_name = names(table(Proto2_above_75)), Proto2 = as.integer(table(Proto2_above_75)))
+
+Proto2_below_75 <- Proto2_out %>%
+  filter(!genome_path %in% Proto2_above_75$species_name) %>%
+  select(genome_path)
+
+Proto2_below_75 <- tibble(species_name = names(table(Proto2_below_75)), Proto2 = as.integer(table(Proto2_below_75)))
+
+RTE_1_out <- read_tsv("PresenceAbsence/blaster/RTE-Snek_1_in_other_species.tsv", col_names = c("sseqid", "sstart", "send", "pident", "qcovs", "bitscore", "length", "genome_path"), skip = 1) %>%
+  filter(length >= 1000)
+
+RTE_1_above_75 <- RTE_1_out %>%
+  filter(pident >= 75) %>%
+  select(genome_path)
+
+RTE_1_above_75 <- tibble(species_name = names(table(RTE_1_above_75)), RTE_1 = as.integer(table(RTE_1_above_75)))
+
+RTE_1_below_75 <- RTE_1_out %>%
+  filter(!genome_path %in% RTE_1_above_75$species_name) %>%
+  select(genome_path)
+
+RTE_1_below_75 <- tibble(species_name = names(table(RTE_1_below_75)), RTE_1 = as.integer(table(RTE_1_below_75)))
+
+RTE_2_out <- read_tsv("PresenceAbsence/blaster/RTE-Snek_2_in_other_species.tsv", col_names = c("sseqid", "sstart", "send", "pident", "qcovs", "bitscore", "length", "genome_path"), skip = 1) %>%
+  filter(length >= 1000)
+
+RTE_2_above_75 <- RTE_2_out %>%
+  filter(pident >= 75) %>%
+  select(genome_path)
+
+RTE_2_above_75 <- tibble(species_name = names(table(RTE_2_above_75)), RTE_2 = as.integer(table(RTE_2_above_75)))
+
+RTE_2_below_75 <- RTE_2_out %>%
+  filter(!genome_path %in% RTE_2_above_75$species_name) %>%
+  select(genome_path)
+
+RTE_2_below_75 <- tibble(species_name = names(table(RTE_2_below_75)), RTE_2 = as.integer(table(RTE_2_below_75)))
+
+Rex1_1_out <- read_tsv("PresenceAbsence/blaster/Rex1-Snek_1_in_other_species.tsv", col_names = c("sseqid", "sstart", "send", "pident", "qcovs", "bitscore", "length", "genome_path"), skip = 1) %>%
+  filter(length >= 1000)
+
+Rex1_1_above_75 <- Rex1_1_out %>%
+  filter(pident >= 75) %>%
+  select(genome_path)
+
+Rex1_1_above_75 <- tibble(species_name = names(table(Rex1_1_above_75)), Rex1_1 = as.integer(table(Rex1_1_above_75)))
+
+Rex1_1_below_75 <- Rex1_1_out %>%
+  filter(!genome_path %in% Rex1_1_above_75$species_name) %>%
   select(genome_path) %>%
-  table()
-Proto2 <- tibble(genome = names(Proto2), Proto2 = as.integer(Proto2))
+  base::unique()
 
-Rex_1 <- read_tsv("blaster/Rex1-Snek_1_in_other_species.tsv", col_names = c("sseqid", "sstart", "send", "pident", "qcovs", "bitscore", "length", "genome_path"), skip = 1) %>%
-  select(genome_path) %>%
-  table()
-Rex_1 <- tibble(genome = names(Rex_1), Rex_1 = as.integer(Rex_1))
+Rex1_1_below_75 <- tibble(species_name = names(table(Rex1_1_below_75)), Rex1_1 = as.integer(table(Rex1_1_below_75)))
 
-Rex_2 <- read_tsv("blaster/Rex1-Snek_2_in_other_species.tsv", col_names = c("sseqid", "sstart", "send", "pident", "qcovs", "bitscore", "length", "genome_path"), skip = 1) %>%
-  select(genome_path) %>%
-  table()
-Rex_2 <- tibble(genome = names(Rex_2), Rex_2 = as.integer(Rex_2))
+Rex1_2_out <- read_tsv("PresenceAbsence/blaster/Rex1-Snek_2_in_other_species.tsv", col_names = c("sseqid", "sstart", "send", "pident", "qcovs", "bitscore", "length", "genome_path"), skip = 1) %>%
+  filter(length >= 1000)
 
-RTE <- read_tsv("blaster/RTE-Snek_in_other_species.tsv", col_names = c("sseqid", "sstart", "send", "pident", "qcovs", "bitscore", "length", "genome_path"), skip = 1) %>%
-  select(genome_path) %>%
-  table()
-RTE <- tibble(genome = names(RTE), RTE = as.integer(RTE))
+Rex1_2_above_75 <- Rex1_2_out %>%
+  filter(pident >= 75) %>%
+  select(genome_path)
+
+Rex1_2_above_75 <- tibble(species_name = names(table(Rex1_2_above_75)), Rex1_2 = as.integer(table(Rex1_2_above_75)))
+
+Rex1_2_below_75 <- Rex1_2_out %>%
+  filter(!genome_path %in% Rex1_2_above_75$species_name) %>%
+  select(genome_path)
+
+Rex1_2_below_75 <- tibble(species_name = names(table(Rex1_2_below_75)), Rex1_2 = as.integer(table(Rex1_2_below_75)))
+
+Rex1_3_out <- read_tsv("PresenceAbsence/blaster/Rex1-Snek_3_in_other_species.tsv", col_names = c("sseqid", "sstart", "send", "pident", "qcovs", "bitscore", "length", "genome_path"), skip = 1) %>%
+  filter(length >= 1000)
+
+Rex1_3_above_75 <- Rex1_3_out %>%
+  filter(pident >= 75) %>%
+  select(genome_path)
+
+Rex1_3_above_75 <- tibble(species_name = names(table(Rex1_3_above_75)), Rex1_3 = as.integer(table(Rex1_3_above_75)))
+
+Rex1_3_below_75 <- Rex1_3_out %>%
+  filter(!genome_path %in% Rex1_3_above_75$species_name) %>%
+  select(genome_path)
+
+Rex1_3_below_75 <- tibble(species_name = names(table(Rex1_3_below_75)), Rex1_3 = as.integer(table(Rex1_3_below_75)))
+
+Rex1_4_out <- read_tsv("PresenceAbsence/blaster/Rex1-Snek_4_in_other_species.tsv", col_names = c("sseqid", "sstart", "send", "pident", "qcovs", "bitscore", "length", "genome_path"), skip = 1) %>%
+  filter(length >= 1000)
+
+Rex1_4_above_75 <- Rex1_4_out %>%
+  filter(pident >= 75) %>%
+  select(genome_path)
+
+Rex1_4_above_75 <- tibble(species_name = names(table(Rex1_4_above_75)), Rex1_4 = as.integer(table(Rex1_4_above_75)))
+
+Rex1_4_below_75 <- Rex1_4_out %>%
+  filter(!genome_path %in% Rex1_4_above_75$species_name) %>%
+  select(genome_path)
+
+Rex1_4_below_75 <- tibble(species_name = names(table(Rex1_4_below_75)), Rex1_4 = as.integer(table(Rex1_4_below_75)))
 
 
-all_joined <- full_join(Proto2, Rex_1) %>%
-  full_join(Rex_2) %>%
-  full_join(RTE)
+table_1 <- Rex1_1_above_75 %>%
+  full_join(Rex1_2_above_75) %>%
+  full_join(Rex1_3_above_75) %>%
+  full_join(Rex1_4_above_75) %>%
+  full_join(RTE_1_above_75) %>%
+  full_join(RTE_2_above_75) %>%
+  full_join(Proto2_above_75)
+  
+table_2 <- table_1 %>%
+  arrange(species_name) %>%
+  mutate(RTE_1 = ifelse(is.na(RTE_1), 0, RTE_1),
+         RTE_2 = ifelse(is.na(RTE_2), 0, RTE_2),
+         Proto2 = ifelse(is.na(Proto2), 0, Proto2),
+         Rex1_1 = ifelse(is.na(Rex1_1), 0, Rex1_1),
+         Rex1_2 = ifelse(is.na(Rex1_2), 0, Rex1_2),
+         Rex1_3 = ifelse(is.na(Rex1_3), 0, Rex1_3),
+         Rex1_4 = ifelse(is.na(Rex1_4), 0, Rex1_4),
+         species_name = sub("~/Genomes/", "", species_name)) %>%
+  separate(species_name, into = c("clade", "species_name", "genome_name"), sep = "/") %>%
+  select(-genome_name)
 
-all_joined <- all_joined %>%
-  replace_na(list(Proto2 = 0, Rex_1 = 0, Rex_2 = 0, RTE = 0))
+write_tsv(x = table_2, path = "PresenceAbsence/blaster/above_75.tsv")
 
-all_joined <- all_joined %>%
-  separate(genome, into = c("tilde", "genomes", "clade", "Species", "fasta"), sep = "/") %>%
-  select(Species, Proto2, Rex_1, Rex_2, RTE) %>%
-  dplyr::rename(`Proto2-Snek` = Proto2, `Rex1-Snek_1` = Rex_1, `Rex1-Snek_2` = Rex_2, `RTE-Snek` = RTE)
+table_3 <- Rex1_1_below_75 %>%
+  full_join(Rex1_2_below_75) %>%
+  full_join(Rex1_3_below_75) %>%
+  full_join(Rex1_4_below_75) %>%
+  full_join(RTE_1_below_75) %>%
+  full_join(RTE_2_below_75) %>%
+  full_join(Proto2_below_75)
 
-write_tsv(x = all_joined, path = "species_repeat_count.tsv")
+table_4 <- table_3 %>%
+  arrange(species_name) %>%
+  mutate(RTE_1 = ifelse(is.na(RTE_1), 0, RTE_1),
+         RTE_2 = ifelse(is.na(RTE_2), 0, RTE_2),
+         Proto2 = ifelse(is.na(Proto2), 0, Proto2),
+         Rex1_1 = ifelse(is.na(Rex1_1), 0, Rex1_1),
+         Rex1_2 = ifelse(is.na(Rex1_2), 0, Rex1_2),
+         Rex1_3 = ifelse(is.na(Rex1_3), 0, Rex1_3),
+         Rex1_4 = ifelse(is.na(Rex1_4), 0, Rex1_4),
+         species_name = sub("~/Genomes/", "", species_name)) %>%
+  separate(species_name, into = c("clade", "species_name", "genome_name"), sep = "/") %>%
+  select(-genome_name)
+
+write_tsv(x = table_4, path = "PresenceAbsence/blaster/below_75.tsv")
