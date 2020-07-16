@@ -4,9 +4,9 @@ suppressMessages(library(plyranges))
 suppressMessages(library(BSgenome))
 
 # set species and genome names
-clade_name <- "Crustaceans"
-species_name <- "Penaeus_vannamei"
-genome_name <- "ASM378908v1.fasta"
+clade_name <- "Reptiles"
+species_name <- "Pseudonaja_textilis"
+genome_name <- "EBS10Xv2-PRI.fasta"
 
 # set/create output directory
 out_dir <- paste0("NovelLINEIdendification/curation/")
@@ -24,19 +24,20 @@ names(genome_seq) <- sub(pattern = " .*", replacement = "", x = names(genome_seq
 genome_fai <- tibble(seqnames = names(genome_seq), scaffold_length = as.double(width(genome_seq)))
 
 # set query
-repeat_name <- "Penaeus_vannamei_RTE-Snek_2a.fasta"
-query_repeat <- paste0("PresenceAbsence/curation/RTE-Snek_2/", repeat_name)
+repeat_name <- "RTE-pseTex.fasta"
+query_repeat <- paste0("../RTE-pseTex.fasta")
 query_seq <- readDNAStringSet(query_repeat)
 # set flanks either side
-flank5 <- 1500
-flank3 <- 1500
+flank5 <- 500
+flank3 <- 500
   
 # blast search for repeat
-blast_out <- read_tsv(system(paste0("blastn -num_threads 12 -query ", query_repeat, " -db ", genome_path, " -outfmt \"6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qlen slen qcovs\""), intern = T), col_names = c("qseqid", "seqnames", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore", "qlen", "slen", "qcovs")) %>%
-    dplyr::filter(length >= 0.5 * qlen) %>%
-    dplyr::mutate(strand = case_when(sstart > send ~ "-", send > sstart ~ "+"), # determine strand of hit
-                  start = case_when(strand == "+" ~ sstart, strand == "-" ~ send), # determine stranded start
-                  end = case_when(strand == "+" ~ send, strand == "-" ~ sstart))
+blast_out <- read_tsv(system(paste0("blastn -task dc-megablast -num_threads 12 -query ", query_repeat, " -db ", genome_path, " -outfmt \"6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qlen slen qcovs\""), intern = T), col_names = c("qseqid", "seqnames", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore", "qlen", "slen", "qcovs")) %>%
+  dplyr::arrange(-length) %>%
+  dplyr::filter(length >= 0.5 * qlen) %>%
+  dplyr::mutate(strand = case_when(sstart > send ~ "-", send > sstart ~ "+"), # determine strand of hit
+                start = case_when(strand == "+" ~ sstart, strand == "-" ~ send), # determine stranded start
+                end = case_when(strand == "+" ~ send, strand == "-" ~ sstart))
 
   # subest base on query repeat
   query_blast_subset <- blast_out %>%
