@@ -5,15 +5,13 @@ suppressMessages(library(BSgenome))
 
 # set species and genome names
 clade_name <- "Reptiles"
-species_name <- "Pseudonaja_textilis"
-genome_name <- "EBS10Xv2-PRI.fasta"
+species_name <- "Aipysurus_laevis"
+genome_name <- "assembly_20171114.fasta"
+genome_path <- paste0("~/Genomes/", clade_name, "/", species_name, "/", genome_name)
 
 # set/create output directory
 out_dir <- paste0("NovelLINEIdendification/curation/")
-if(!dir.exists(out_dir))dir.create(out_dir)
-
-# set genome and carp paths
-genome_path <- paste0("~/Genomes/", clade_name, "/", species_name, "/", genome_name)
+if(!dir.exists(out_dir))dir.create(out_dir, recursive = T)
 
 # read in genome
 genome_seq <- Biostrings::readDNAStringSet(filepath = genome_path)
@@ -27,6 +25,7 @@ genome_fai <- tibble(seqnames = names(genome_seq), scaffold_length = as.double(w
 repeat_name <- "RTE-pseTex.fasta"
 query_repeat <- paste0("../RTE-pseTex.fasta")
 query_seq <- readDNAStringSet(query_repeat)
+
 # set flanks either side
 flank5 <- 500
 flank3 <- 500
