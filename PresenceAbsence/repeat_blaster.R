@@ -2,8 +2,8 @@
 
 suppressMessages(library(tidyverse))
 
-repeats <- c("Proto2-Snek", "RTE-Snek_1", "RTE-Snek_2", "Rex1-Snek_1", "Rex1-Snek_2", "Rex1-Snek_3", "Rex1-Snek_4", "RTE-Snek_2")
-
+# set repeat names
+repeats <- c("Proto2-Snek", "RTE-Snek_1", "RTE-Snek_2", "Rex1-Snek_1", "Rex1-Snek_2", "Rex1-Snek_3", "Rex1-Snek_4", "RTE-Kret")
 
 species_list <- read_tsv("~/all_genomes.txt", col_names = c("clade_name", "species_name", "genome_name")) %>%
   mutate(genome_path = paste0("~/Genomes/", clade_name, "/", species_name, "/", genome_name))
@@ -87,6 +87,21 @@ RTE_2_below_75 <- RTE_2_out %>%
 
 RTE_2_below_75 <- tibble(species_name = names(table(RTE_2_below_75)), RTE_2 = as.integer(table(RTE_2_below_75)))
 
+RTE_Kret_out <- read_tsv("PresenceAbsence/blaster/RTE-Kret_in_other_species.tsv", col_names = c("sseqid", "sstart", "send", "pident", "qcovs", "bitscore", "length", "genome_path"), skip = 1) %>%
+  filter(length >= 1000)
+
+RTE_Kret_above_75 <- RTE_Kret_out %>%
+  filter(pident >= 75) %>%
+  select(genome_path)
+
+RTE_Kret_above_75 <- tibble(species_name = names(table(RTE_Kret_above_75)), RTE_Kret = as.integer(table(RTE_Kret_above_75)))
+
+RTE_Kret_below_75 <- RTE_Kret_out %>%
+  filter(!genome_path %in% RTE_Kret_above_75$species_name) %>%
+  select(genome_path)
+
+RTE_Kret_below_75 <- tibble(species_name = names(table(RTE_Kret_below_75)), RTE_Kret = as.integer(table(RTE_Kret_below_75)))
+
 Rex1_1_out <- read_tsv("PresenceAbsence/blaster/Rex1-Snek_1_in_other_species.tsv", col_names = c("sseqid", "sstart", "send", "pident", "qcovs", "bitscore", "length", "genome_path"), skip = 1) %>%
   filter(length >= 1000)
 
@@ -148,19 +163,20 @@ Rex1_4_below_75 <- Rex1_4_out %>%
 
 Rex1_4_below_75 <- tibble(species_name = names(table(Rex1_4_below_75)), Rex1_4 = as.integer(table(Rex1_4_below_75)))
 
-
 table_1 <- Rex1_1_above_75 %>%
   full_join(Rex1_2_above_75) %>%
   full_join(Rex1_3_above_75) %>%
   full_join(Rex1_4_above_75) %>%
   full_join(RTE_1_above_75) %>%
   full_join(RTE_2_above_75) %>%
+  full_join(RTE_Kret_above_75) %>%
   full_join(Proto2_above_75)
   
 table_2 <- table_1 %>%
   arrange(species_name) %>%
   mutate(RTE_1 = ifelse(is.na(RTE_1), 0, RTE_1),
          RTE_2 = ifelse(is.na(RTE_2), 0, RTE_2),
+         RTE_Kret = ifelse(is.na(RTE_Kret), 0, RTE_Kret),
          Proto2 = ifelse(is.na(Proto2), 0, Proto2),
          Rex1_1 = ifelse(is.na(Rex1_1), 0, Rex1_1),
          Rex1_2 = ifelse(is.na(Rex1_2), 0, Rex1_2),
@@ -178,12 +194,14 @@ table_3 <- Rex1_1_below_75 %>%
   full_join(Rex1_4_below_75) %>%
   full_join(RTE_1_below_75) %>%
   full_join(RTE_2_below_75) %>%
+  full_join(RTE_Kret_below_75) %>%
   full_join(Proto2_below_75)
 
 table_4 <- table_3 %>%
   arrange(species_name) %>%
   mutate(RTE_1 = ifelse(is.na(RTE_1), 0, RTE_1),
          RTE_2 = ifelse(is.na(RTE_2), 0, RTE_2),
+         RTE_Kret = ifelse(is.na(RTE_Kret), 0, RTE_Kret),
          Proto2 = ifelse(is.na(Proto2), 0, Proto2),
          Rex1_1 = ifelse(is.na(Rex1_1), 0, Rex1_1),
          Rex1_2 = ifelse(is.na(Rex1_2), 0, Rex1_2),
