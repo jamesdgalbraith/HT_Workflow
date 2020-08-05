@@ -29,7 +29,6 @@ all_LINEs_in_coding_exons.fasta
 insertions.bed
 insertions.fa
 speciesComparison
-overlapSearch.R
 overlapSearch2.R
 CARP_LINEs.fasta
 CARP_LINEs.fasta.nhr

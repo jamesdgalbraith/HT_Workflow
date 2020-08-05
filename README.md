@@ -1,17 +1,21 @@
 # HT Workflow
 Scripts used in the discovery, curation and analysis of horizonally transferred repeats in _Aipysurus laevis_
 
-## Identification of repetitive sequences in _Aipysurus laevis_ (NovelLINEIdendification)
-Repetitive sequences identified and classified using CARP (Zeng et al. 2018) and RepeatModeler (Smit and Hubley)
+## Identification of repetitive sequences in _Aipysurus laevis_
+Repetitive sequences identified and classified using CARP (Zeng et al. 2018)
 
-LINE_Finder.R - used to identify potential LINEs from Unclassified and Unknown repetitive sequences CARP and RepeatModeler based on protein domain presence
+transposon_finder.R - used to identify potential TEs from repetitive sequences identified by CARP based on protein domain presence
+
+rpstblastn.sh - a shell script used to improve search speed for protein domains 
+
+solo_curator.R - used to curate potential transposons identified by transposon_finder.R
 
 ## Presence/absence of highly similar LINEs in closely related species
 Command line BLASTN+ (megablast) other snake genomes for HTT LINEs. Also used to identify to HTT LINEs in _Aipysurus laevis_ transcriptome
 
 ## Presence/absence and curation of similar LINEs other highly divergent taxa
 
-LINESearcher.R - used to identify species containing repeats similar to the HTT LINES
+repeatblaster.R - used to identify species containing repeats similar to the HTT LINES
 
 extendAlign.R and variants - used to construct alignments of similar sequences found in each species. Alignments manually edited and consensus made in Geneious
 
